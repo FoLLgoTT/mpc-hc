@@ -27,7 +27,6 @@
 #include "CMPCThemeUtil.h"
 #include <prsht.h>
 #include "Monitors.h"
-#include "Translations.h"
 
 // CPPageSheet
 
@@ -333,6 +332,10 @@ LRESULT CPPageSheet::OnDpiChanged(WPARAM wParam, LPARAM lParam) {
                     dlgChild = dlgChild->GetNextWindow();
                 }
             }
+            CPPageAdvanced* ppa;
+            if ((ppa = DYNAMIC_DOWNCAST(CPPageAdvanced, pChild)) != 0) {
+                ppa->DoDPIChanged();
+            }
             pChild = pChild->GetNextWindow();
         }
 
@@ -355,27 +358,9 @@ LRESULT CPPageSheet::OnDpiChanged(WPARAM wParam, LPARAM lParam) {
     return FALSE;
 }
 
-int CALLBACK PropSheetCallBackRTL(HWND hWnd, UINT message, LPARAM lParam) {
-    switch (message) {
-        case PSCB_PRECREATE:
-        {
-            //arabic or hebrew
-            if (Translations::IsLangRTL(AfxGetAppSettings().language)) {
-                LPDLGTEMPLATE lpTemplate = (LPDLGTEMPLATE)lParam;
-                lpTemplate->dwExtendedStyle |= WS_EX_LAYOUTRTL;
-            }
-        }
-        break;
-    }
-    return 0;
-}
-
 INT_PTR CPPageSheet::DoModal() {
-    //see RTLWindowsLayoutCbtFilterHook and Translations::SetLanguage.
-    //We handle here to avoid Windows 11 bug with SetWindowLongPtr
-    m_psh.dwFlags |= PSH_USECALLBACK;
-    m_psh.pfnCallback = PropSheetCallBackRTL;
-    return CPropertySheet::DoModal();
+    PreDoModalRTL(&m_psh);
+    return __super::DoModal();
 }
 
 

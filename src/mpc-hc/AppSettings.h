@@ -31,7 +31,7 @@
 #include "../filters/renderer/VideoRenderers/RenderersSettings.h"
 #include "SettingsDefines.h"
 #include "Shaders.h"
-
+#include "../Subtitles/SubRendererSettings.h"
 #include <afxadv.h>
 #include <afxsock.h>
 
@@ -759,8 +759,10 @@ public:
     CString         strAutoDownloadSubtitlesExclude;
     bool            bAutoUploadSubtitles;
     bool            bPreferHearingImpairedSubtitles;
-    bool            bRenderSubtitlesUsingLibass;
-    CStringA        strOpenTypeLangHint;
+#if USE_LIBASS
+    bool            bRenderSSAUsingLibass;
+    bool            bRenderSRTUsingLibass;
+#endif
     bool            bMPCTheme;
     bool            bWindows10DarkThemeActive;
     bool            bWindows10AccentColorsEnabled;
@@ -930,6 +932,8 @@ public:
     bool bUseSubsFromYDL;
     CString sYDLSubsPreference;
     bool bUseAutomaticCaptions;
+    bool bUseFreeType;
+    CStringA strOpenTypeLangHint;
 
     CStringW lastQuickOpenPath;
     CStringW lastSaveImagePath;
@@ -1005,8 +1009,6 @@ public:
     bool            GetAllowMultiInst() const;
 
     static bool     IsVSFilterInstalled();
-#if USE_LIBASS
     SubRendererSettings	GetSubRendererSettings();
-#endif
 };
 

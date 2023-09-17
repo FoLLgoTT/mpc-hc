@@ -93,10 +93,12 @@ BOOL CPlayerStatusBar::PreCreateWindow(CREATESTRUCT& cs)
 CSize CPlayerStatusBar::CalcFixedLayout(BOOL bStretch, BOOL bHorz)
 {
     CSize ret = __super::CalcFixedLayout(bStretch, bHorz);
-    ret.cy = std::max<long>(ret.cy, 24);
-    if (!DpiHelper::CanUsePerMonitorV2()) {
-        ret.cy = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(ret.cy);
+    if (!m_initialWindowDPI) {
+        m_initialWindowDPI = m_pMainFrame->m_dpi.DPIY(); //the initial DPI is always cached by CDialogBar and is never updated for future calculations of CalcFixedLayout
     }
+    CSize r2 = ret;
+    ret.cy = m_pMainFrame->m_dpi.ScaleArbitraryToOverrideY(ret.cy, m_initialWindowDPI); //we must scale by initial DPI, NOT current DPI
+    ret.cy = std::max<long>(ret.cy, m_pMainFrame->m_dpi.ScaleY(24)); //at least 24px scaled to current dpi
     return ret;
 }
 
@@ -122,17 +124,23 @@ int CPlayerStatusBar::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
     m_status.SetWindowPos(&m_time, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 
+    ScaleFont();
+
     Relayout();
 
     return 0;
+}
+
+void CPlayerStatusBar::ScaleFont() {
+    m_status.ScaleFont(m_pMainFrame->m_dpi);
+    m_time.ScaleFont(m_pMainFrame->m_dpi);
 }
 
 void CPlayerStatusBar::EventCallback(MpcEvent ev)
 {
     switch (ev) {
         case MpcEvent::DPI_CHANGED:
-            m_status.ScaleFont(m_pMainFrame->m_dpi);
-            m_time.ScaleFont(m_pMainFrame->m_dpi);
+            ScaleFont();
             SetMediaTypeIcon();
             break;
 

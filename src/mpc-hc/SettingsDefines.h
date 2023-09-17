@@ -107,6 +107,7 @@
 #define IDS_RS_ALWAYS_USE_SHORT_MENU        _T("AlwaysUseShortMenu")
 #define IDS_RS_STILL_VIDEO_DURATION         _T("StillVideoDuration")
 #define IDS_RS_MOUSE_LEFTUP_DELAY           _T("MouseLeftUpDelay")
+#define IDS_RS_USE_FREETYPE                 _T("UseFreetype")
 
 // Audio
 #define IDS_RS_VOLUME                       _T("Volume")
@@ -139,7 +140,8 @@
 #define IDS_RS_MENULANG                     _T("MenuLang")
 #define IDS_RS_AUDIOLANG                    _T("AudioLang")
 #define IDS_RS_SUBTITLESLANG                _T("SubtitlesLang")
-#define IDS_RS_RENDERSUBTITLESUSINGLIBASS   _T("RenderSubtitlesUsingLibass")
+#define IDS_RS_RENDERSSAUSINGLIBASS         _T("RenderSSAUsingLibass")
+#define IDS_RS_RENDERSRTUSINGLIBASS         _T("RenderSRTUsingLibass")
 #define IDS_RS_OPENTYPELANGHINT             _T("OpenTypeLangHint")
 #define IDS_RS_AUTOSPEAKERCONF              _T("AutoSpeakerConf")
 #define IDS_RS_CLOSEDCAPTIONS               _T("ClosedCaptions")

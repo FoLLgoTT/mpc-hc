@@ -703,6 +703,10 @@
 #define IDC_CLEAR_ALL_ASSOCIATIONS      22085
 #define IDC_SEEK_PREVIEW                22086
 #define IDC_CHECK_AUTOSAVE_ONLINE_SUBTITLE 22087
+#define IDC_STATIC21                    22088
+#define IDC_STATIC22                    22089
+#define IDC_STATIC23                    22090
+#define IDC_STATIC_LIBASS               22091
 #define ID_SUB_DELAY_DOWN               24000
 #define ID_SUB_DELAY_UP                 24001
 #define IDS_MPLAYERC_104                24002
@@ -1706,6 +1710,7 @@
 #define IDS_PPAGEADVANCED_REDIRECT_OPEN_TO_APPEND_THRESHOLD 57631
 #define IDS_SUBTITLE_RENDERER_NONE 57632
 #define IDS_PPAGEADVANCED_MOUSE_LEFTUP_DELAY 57633
+#define IDS_PPAGEADVANCED_USE_FREETYPE 57634
 
 // Next default values for new objects
 // 
@@ -1713,7 +1718,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        20070
 #define _APS_NEXT_COMMAND_VALUE         33460
-#define _APS_NEXT_CONTROL_VALUE         22088
+#define _APS_NEXT_CONTROL_VALUE         22092
 #define _APS_NEXT_SYMED_VALUE           24052
 #endif
 #endif

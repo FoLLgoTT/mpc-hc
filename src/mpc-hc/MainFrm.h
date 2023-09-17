@@ -242,6 +242,8 @@ private:
     friend class CMouse;
     friend class CPlayerSeekBar; // for accessing m_controls.ControlChecked()
     friend class CChildView; // for accessing m_controls.DelayShowNotLoaded()
+    friend class CFullscreenWnd; // for accessing m_controls.DelayShowNotLoaded()
+    friend class CMouseWndWithArtView; // for accessing m_controls.DelayShowNotLoaded()
     friend class SubtitlesProvider;
 
     // TODO: wrap these graph objects into a class to make it look cleaner
@@ -371,7 +373,7 @@ private:
     bool SetupShadersSubMenu();
     void SetupRecentFilesSubMenu();
 
-    void SetupNavStreamSelectSubMenu(CMenu& subMenu, UINT id, DWORD dwSelGroup);
+    DWORD SetupNavStreamSelectSubMenu(CMenu& subMenu, UINT id, DWORD dwSelGroup);
     void OnNavStreamSelectSubMenu(UINT id, DWORD dwSelGroup);
     void OnStreamSelect(bool forward, DWORD dwSelGroup);
     static CString GetStreamOSDString(CString name, LCID lcid, DWORD dwSelGroup);
@@ -510,8 +512,9 @@ public:
     bool m_fFullScreen;
     bool m_fFirstFSAfterLaunchOnFS;
     bool m_fStartInD3DFullscreen;
-    bool m_fStartInFullscreenMainFrame;
+    bool m_fStartInFullscreen;
     bool m_bFullScreenWindowIsD3D;
+    bool m_bFullScreenWindowIsOnSeparateDisplay;
 
     CComPtr<IBaseFilter> m_pRefClock; // Adjustable reference clock. GothSync
     CComPtr<ISyncClock> m_pSyncClock;
@@ -523,7 +526,7 @@ public:
     bool IsInteractiveVideo() const;
     bool IsFullScreenMode() const;
     bool IsFullScreenMainFrame() const;
-    bool HasFullScreenWindow() const;
+    bool HasDedicatedFSVideoWindow() const;
     bool IsD3DFullScreenMode() const;
     bool IsSubresyncBarVisible() const;
 
@@ -705,7 +708,7 @@ public:
 
     void DoAfterPlaybackEvent();
     bool SearchInDir(bool bDirForward, bool bLoop = false);
-    bool WildcardFileSearch(CString searchstr, std::set<CString, CStringUtils::LogicalLess>& results);
+    bool WildcardFileSearch(CString searchstr, std::set<CString, CStringUtils::LogicalLess>& results, bool recurse_dirs);
     CString lastOpenFile;
     bool CanSkipFromClosedFile();
 
@@ -1154,7 +1157,7 @@ public:
     HRESULT PreviewWindowShow(REFERENCE_TIME rtCur2);
     bool CanPreviewUse();
 
-    CFullscreenWnd* m_pFullscreenWnd;
+    CFullscreenWnd* m_pDedicatedFSVideoWnd;
     CVMROSD     m_OSD;
     bool        m_bOSDDisplayTime;
     int         m_nCurSubtitle;
@@ -1230,6 +1233,10 @@ protected:
     void UpdateSeekbarChapterBag();
     void UpdateAudioSwitcher();
 
+    void LoadArtToViews(const CString& imagePath);
+    void LoadArtToViews(std::vector<BYTE> buffer);
+    void ClearArtFromViews();
+
     void UpdateUILanguage();
 
     bool PerformFlipRotate();
@@ -1285,6 +1292,8 @@ public:
     };
 
     void UpdateControlState(UpdateControlTarget target);
+
+    void ReloadMenus();
 
     // TODO: refactor it outside of MainFrm
     GUID GetTimeFormat();

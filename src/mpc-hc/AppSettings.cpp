@@ -35,7 +35,6 @@
 #include "../thirdparty/sanear/src/Factory.h"
 #include <VersionHelpersInternal.h>
 #include <mvrInterfaces.h>
-#include "../Subtitles/SubRendererSettings.h"
 #include <chrono>
 #include "date/date.h"
 
@@ -66,7 +65,7 @@ CAppSettings::CAppSettings()
     , MRUDub(0, _T("Recent Dub List"), _T("Dub%d"), 20)
     , fRememberDVDPos(false)
     , fRememberFilePos(false)
-    , iRememberPosForLongerThan(0)
+    , iRememberPosForLongerThan(5)
     , bRememberPosForAudioFiles(true)
     , bRememberPlaylistItems(true)
     , fRememberWindowPos(false)
@@ -241,14 +240,17 @@ CAppSettings::CAppSettings()
     , bShowFPSInStatusbar(false)
     , bShowABMarksInStatusbar(false)
     , bShowVideoInfoInStatusbar(false)
-    , bRenderSubtitlesUsingLibass(false)
+#if USE_LIBASS
+    , bRenderSSAUsingLibass(false)
+    , bRenderSRTUsingLibass(false)
+#endif
     , bAddLangCodeWhenSaveSubtitles(false)
     , bUseTitleInRecentFileList(true)
     , sYDLSubsPreference()
     , bUseAutomaticCaptions(false)
     , bLockNoPause(false)
     , bUseSMTC(false)
-    , iReloadAfterLongPause(-1)
+    , iReloadAfterLongPause(0)
     , bOpenRecPanelWhenOpeningDevice(true)
     , lastQuickOpenPath(L"")
     , lastSaveImagePath(L"")
@@ -257,6 +259,7 @@ CAppSettings::CAppSettings()
     , bAlwaysUseShortMenu(false)
     , iStillVideoDuration(10)
     , iMouseLeftUpDelay(0)
+    , bUseFreeType(false)
 {
     // Internal source filter
 #if INTERNAL_SOURCEFILTER_CDDA
@@ -923,9 +926,11 @@ void CAppSettings::SaveSettings(bool write_full_history /* = false */)
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_MENULANG, idMenuLang);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOLANG, idAudioLang);
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_SUBTITLESLANG, idSubtitlesLang);
-#if USE_LIBASS
-    pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSUBTITLESUSINGLIBASS, bRenderSubtitlesUsingLibass);
     pApp->WriteProfileString(IDS_R_SETTINGS, IDS_RS_OPENTYPELANGHINT, CString(strOpenTypeLangHint));
+    pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_USE_FREETYPE, bUseFreeType);
+#if USE_LIBASS
+    pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSSAUSINGLIBASS, bRenderSSAUsingLibass);
+    pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSRTUSINGLIBASS, bRenderSRTUsingLibass);
 #endif
     pApp->WriteProfileInt(IDS_R_SETTINGS, IDS_RS_CLOSEDCAPTIONS, fClosedCaptions);
     CString style;
@@ -1626,10 +1631,13 @@ void CAppSettings::LoadSettings()
     idAudioLang = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_AUDIOLANG, 0);
     idSubtitlesLang = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_SUBTITLESLANG, 0);
 #if USE_LIBASS
-    bRenderSubtitlesUsingLibass = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSUBTITLESUSINGLIBASS, FALSE);
+    bRenderSSAUsingLibass = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSSAUSINGLIBASS, FALSE);
+    bRenderSRTUsingLibass = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_RENDERSRTUSINGLIBASS, FALSE);
+#endif
     CT2A tmpLangHint(pApp->GetProfileString(IDS_R_SETTINGS, IDS_RS_OPENTYPELANGHINT, _T("")));
     strOpenTypeLangHint = tmpLangHint;
-#endif
+    bUseFreeType= !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_USE_FREETYPE, FALSE);
+
     fClosedCaptions = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_CLOSEDCAPTIONS, FALSE);
     {
         CString temp = pApp->GetProfileString(IDS_R_SETTINGS, IDS_RS_SPSTYLE);
@@ -1870,15 +1878,11 @@ void CAppSettings::LoadSettings()
     strWebServerCGI = pApp->GetProfileString(IDS_R_SETTINGS, IDS_RS_WEBSERVERCGI);
 
     CString MyPictures;
-
     CRegKey key;
-    // grrrrr
-    // if (!SHGetSpecialFolderPath(nullptr, MyPictures.GetBufferSetLength(MAX_PATH), CSIDL_MYPICTURES, TRUE)) MyPictures.Empty();
-    // else MyPictures.ReleaseBuffer();
     if (ERROR_SUCCESS == key.Open(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders"), KEY_READ)) {
-        ULONG lenValue = MAX_PATH;
-        if (ERROR_SUCCESS == key.QueryStringValue(_T("My Pictures"), MyPictures.GetBuffer(MAX_PATH), &lenValue)) {
-            MyPictures.ReleaseBufferSetLength(lenValue);
+        ULONG lenValue = 1024;
+        if (ERROR_SUCCESS == key.QueryStringValue(_T("My Pictures"), MyPictures.GetBuffer((int)lenValue), &lenValue)) {
+            MyPictures.ReleaseBufferSetLength((int)lenValue);
         } else {
             MyPictures.Empty();
         }
@@ -1984,8 +1988,11 @@ void CAppSettings::LoadSettings()
 
     // playback positions for last played files
     fRememberFilePos = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_FILEPOS, FALSE);
-    iRememberPosForLongerThan = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_FILEPOSLONGER, 0);
+    iRememberPosForLongerThan = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_FILEPOSLONGER, 5);
     bRememberPosForAudioFiles = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_FILEPOSAUDIO, TRUE);
+    if (iRememberPosForLongerThan < 1) {
+        iRememberPosForLongerThan = 5;
+    }
 
     // playback positions for last played DVDs
     fRememberDVDPos = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_DVDPOS, FALSE);
@@ -2028,7 +2035,7 @@ void CAppSettings::LoadSettings()
 
     bLockNoPause = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_LOCK_NOPAUSE, FALSE);
     bUseSMTC = !!pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_USE_SMTC, FALSE);
-    iReloadAfterLongPause = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_RELOAD_AFTER_LONG_PAUSE, -1);
+    iReloadAfterLongPause = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_RELOAD_AFTER_LONG_PAUSE, 0);
     bOpenRecPanelWhenOpeningDevice = pApp->GetProfileInt(IDS_R_SETTINGS, IDS_RS_OPEN_REC_PANEL_WHEN_OPENING_DEVICE, TRUE);
 
     sanear->SetOutputDevice(pApp->GetProfileString(IDS_R_SANEAR, IDS_RS_SANEAR_DEVICE_ID),
@@ -2295,8 +2302,8 @@ CString CAppSettings::ParseFileName(CString const& param)
     if (param.Find(_T(":")) < 0 && param.Left(2) != L"\\\\") {
         // Try to transform relative pathname into full pathname
         CString fullPathName;
-        DWORD dwLen = GetFullPathName(param, MAX_PATH, fullPathName.GetBuffer(MAX_PATH), nullptr);
-        if (dwLen > 0 && dwLen < MAX_PATH) {
+        DWORD dwLen = GetFullPathName(param, 2048, fullPathName.GetBuffer(2048), nullptr);
+        if (dwLen > 0 && dwLen < 2048) {
             fullPathName.ReleaseBuffer(dwLen);
 
             if (!fullPathName.IsEmpty() && PathUtils::Exists(fullPathName)) {
@@ -3481,15 +3488,15 @@ void CAppSettings::UpdateSettings()
     }
 }
 
-#if USE_LIBASS
 // ToDo: move these settings into CRendererSettings or make an implementation similar to CRendererSettings that holds old subtitle settings
 SubRendererSettings CAppSettings::GetSubRendererSettings() {
     SubRendererSettings s;
-    s.renderUsingLibass = this->bRenderSubtitlesUsingLibass;
-    int otlLen = this->strOpenTypeLangHint.GetLength();
-    if (otlLen > 0) {
-        strncpy_s(s.openTypeLangHint, _countof(s.openTypeLangHint), this->strOpenTypeLangHint.GetBuffer(), std::min(OpenTypeLang::OTLangHintLen, otlLen + 1));
-    }
+    s.defaultStyle = this->subtitlesDefStyle;
+    s.overrideDefaultStyle = this->fUseDefaultSubtitlesStyle;
+#if USE_LIBASS
+    s.renderSSAUsingLibass = this->bRenderSSAUsingLibass;
+    s.renderSRTUsingLibass = this->bRenderSRTUsingLibass;
+#endif
+    OpenTypeLang::CStringAtoHintStr(s.openTypeLangHint, this->strOpenTypeLangHint);
     return s;
 }
-#endif

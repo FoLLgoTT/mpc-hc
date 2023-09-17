@@ -158,6 +158,20 @@ void CPlayerPlaylistBar::SetHiddenDueToFullscreen(bool bHiddenDueToFullscreen)
     m_bHiddenDueToFullscreen = bHiddenDueToFullscreen;
 }
 
+void CPlayerPlaylistBar::AddItem(CString fn)
+{
+    if (fn.IsEmpty()) {
+        return;
+    }
+
+    CPlaylistItem pli;
+    pli.m_fns.AddTail(fn);
+
+    pli.AutoLoadFiles();
+
+    m_pl.AddTail(pli);
+}
+
 void CPlayerPlaylistBar::AddItem(CString fn, CAtlList<CString>* subs)
 {
     CAtlList<CString> sl;
@@ -292,13 +306,13 @@ bool CPlayerPlaylistBar::AddItemNoDuplicate(CString fn)
     return true;
 }
 
-bool CPlayerPlaylistBar::AddFromFilemask(CString mask)
+bool CPlayerPlaylistBar::AddFromFilemask(CString mask, bool recurse_dirs)
 {
     ASSERT(ContainsWildcard(mask));
     bool added = false;
 
     std::set<CString, CStringUtils::LogicalLess> filelist;
-    if (m_pMainFrame->WildcardFileSearch(mask, filelist)) {
+    if (m_pMainFrame->WildcardFileSearch(mask, filelist, recurse_dirs)) {
         auto it = filelist.begin();
         while (it != filelist.end()) {
             if (AddItemNoDuplicate(*it)) {
@@ -314,7 +328,7 @@ bool CPlayerPlaylistBar::AddFromFilemask(CString mask)
 bool CPlayerPlaylistBar::AddItemsInFolder(CString pathname)
 {
     CString mask = CString(pathname).TrimRight(_T("\\/")) + _T("\\*.*");
-    return AddFromFilemask(mask);
+    return AddFromFilemask(mask, false);
 }
 
 void CPlayerPlaylistBar::ParsePlayList(CAtlList<CString>& fns, CAtlList<CString>* subs, int redir_count, CString label, CString ydl_src, CString cue, CAtlList<CYoutubeDLInstance::YDLSubInfo>* ydl_subs)
@@ -336,7 +350,7 @@ void CPlayerPlaylistBar::ParsePlayList(CAtlList<CString>& fns, CAtlList<CString>
             CString fname = fns.GetHead();
             if (!PathUtils::IsURL(fname)) {
                 if (ContainsWildcard(fname)) {
-                    AddFromFilemask(fname);
+                    AddFromFilemask(fname, true);
                     return;
                 } else if (PathUtils::IsDir(fname)) {
                     AddItemsInFolder(fname);
@@ -673,7 +687,7 @@ bool CPlayerPlaylistBar::ParseM3UPlayList(CString fn) {
         if (!isurl && !PathUtils::IsURL(str) && ContainsWildcard(str)) {
             // wildcard entry
             std::set<CString, CStringUtils::LogicalLess> filelist;
-            if (m_pMainFrame->WildcardFileSearch(str, filelist)) {
+            if (m_pMainFrame->WildcardFileSearch(str, filelist, true)) {
                 auto it = filelist.begin();
                 while (it != filelist.end()) {
                     pli = CPlaylistItem();
@@ -1493,8 +1507,8 @@ END_MESSAGE_MAP()
 void CPlayerPlaylistBar::ScaleFont()
 {
     LOGFONT lf;
-    GetMessageFont(&lf);
-    lf.lfHeight = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(lf.lfHeight);
+    m_pMainFrame->m_dpi.GetMessageFont(&lf);
+    //lf.lfHeight = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(lf.lfHeight);
 
     m_font.DeleteObject();
     if (m_font.CreateFontIndirect(&lf)) {
@@ -1625,19 +1639,22 @@ void CPlayerPlaylistBar::OnNMDblclkList(NMHDR* pNMHDR, LRESULT* pResult)
 
 void CPlayerPlaylistBar::OnMeasureItem(int nIDCtl, LPMEASUREITEMSTRUCT lpMeasureItemStruct)
 {
-	__super::OnMeasureItem(nIDCtl, lpMeasureItemStruct);
-
-	if (createdWindow) {
-		//after creation, measureitem is called once for every window resize.  we will cache the default before DPI scaling
+    __super::OnMeasureItem(nIDCtl, lpMeasureItemStruct);
+    lpMeasureItemStruct->itemHeight = m_pMainFrame->m_dpi.CalculateListCtrlItemHeight((CListCtrl*)&m_list);
+#if 0
+    if (createdWindow) {
+        //after creation, measureitem is called once for every window resize.  we will cache the default height before DPI scaling
         if (m_itemHeight == 0) {
-			m_itemHeight = lpMeasureItemStruct->itemHeight;
-		}
-		lpMeasureItemStruct->itemHeight = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(m_itemHeight);
-	} else { 
-		//before creation, we must return a valid DPI scaled value, to prevent visual glitches when icon height has been tweaked.
-		//we cannot cache this value as it may be different from that calculated after font has been set
-		lpMeasureItemStruct->itemHeight = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(lpMeasureItemStruct->itemHeight);
-	}
+            m_itemHeight = lpMeasureItemStruct->itemHeight;
+        }
+        lpMeasureItemStruct->itemHeight = m_pMainFrame->m_dpi.ScaleArbitraryToOverrideY(m_itemHeight, m_initialWindowDPI); //we must scale by initial DPI, NOT current DPI
+    } else {
+        //before creation, we must return a valid DPI scaled value, to prevent visual glitches when icon height has been tweaked.
+        //we cannot cache this value as it may be different from that calculated after font has been set
+        lpMeasureItemStruct->itemHeight = m_pMainFrame->m_dpi.ScaleSystemToOverrideY(lpMeasureItemStruct->itemHeight);
+        m_initialWindowDPI = m_pMainFrame->m_dpi.DPIY(); //the initial DPI is always cached by ListCtrl and is never updated for future calculations of OnMeasureItem
+    }
+#endif
 }
 
 /*
@@ -1694,7 +1711,13 @@ void CPlayerPlaylistBar::OnDrawItem(int nIDCtl, LPDRAWITEMSTRUCT lpDrawItemStruc
     int nItem = lpDrawItemStruct->itemID;
     CRect rcItem = lpDrawItemStruct->rcItem;
     POSITION pos = FindPos(nItem);
-    if (pos == NULL) return;
+    if (pos == NULL) {
+        return;
+    }
+    if (m_pl.IsEmpty()) {
+        ASSERT(false);
+        return;
+    }
     bool itemPlaying = pos == m_pl.GetPos();
     bool itemSelected = !!m_list.GetItemState(nItem, LVIS_SELECTED);
     CPlaylistItem& pli = m_pl.GetAt(pos);

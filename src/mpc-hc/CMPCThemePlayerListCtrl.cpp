@@ -125,6 +125,14 @@ bool CMPCThemePlayerListCtrl::getFlaggedItem(int iItem)
     }
 }
 
+void CMPCThemePlayerListCtrl::DoDPIChanged()
+{
+    if (listMPCThemeFontBold.m_hObject) {
+        listMPCThemeFontBold.DeleteObject();
+    }
+
+}
+
 
 BOOL CMPCThemePlayerListCtrl::PreTranslateMessage(MSG* pMsg)
 {

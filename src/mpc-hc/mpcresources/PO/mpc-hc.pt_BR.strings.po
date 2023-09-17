@@ -4,15 +4,15 @@
 # Translators:
 # MPC HC <adiposegithub@gmail.com>, 2020
 # Zyz696 Paga, 2020
-# Felipefpl, 2022
+# Felipefpl, 2023
 # 
 msgid ""
 msgstr ""
 "Project-Id-Version: MPC-HC\n"
-"POT-Creation-Date: 2022-06-24 16:57:41+0000\n"
+"POT-Creation-Date: 2022-12-04 16:41:19+0000\n"
 "PO-Revision-Date: 2020-01-02 07:46+0000\n"
-"Last-Translator: Felipefpl, 2022\n"
-"Language-Team: Portuguese (Brazil) (https://www.transifex.com/mpchc/teams/106126/pt_BR/)\n"
+"Last-Translator: Felipefpl, 2023\n"
+"Language-Team: Portuguese (Brazil) (https://app.transifex.com/mpchc/teams/106126/pt_BR/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -4653,6 +4653,12 @@ msgstr ""
 "Os talhos do menu do player e o botão direito do mouse mostram o menu "
 "compacto -- mesmo quando o menu principal está oculto."
 
+msgctxt "IDS_PPAGEADVANCED_USE_FREETYPE"
+msgid ""
+"Use FreeType for subtitle rendering.  Enables support for per-language "
+"glyphs."
+msgstr ""
+
 msgctxt "IDS_PPAGEADVANCED_FULLSCREEN_SEPARATE_CONTROLS"
 msgid ""
 "Keep main window controls visible on current monitor when going fullscreen "
@@ -4708,6 +4714,8 @@ msgid ""
 "Maximum delay in milliseconds of mouse LeftUp event when clicking on the "
 "video."
 msgstr ""
+"Atraso máximo em mili-segundos do evento LeftUp do mouse quando clicar no "
+"vídeo."
 
 msgctxt "IDS_PPAGEADVANCED_LOCK_NOPAUSE"
 msgid "Do not pause playback when locking the screen."

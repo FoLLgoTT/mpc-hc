@@ -27,6 +27,8 @@
 #include "CrashReporter.h"
 #include "ExceptionHandler.h"
 
+IMPLEMENT_DYNAMIC(CPPageAdvanced, CMPCThemePPageBase)
+
 CPPageAdvanced::CPPageAdvanced()
     : CMPCThemePPageBase(IDD, IDD)
 {
@@ -46,15 +48,7 @@ void CPPageAdvanced::DoDataExchange(CDataExchange* pDX)
 BOOL CPPageAdvanced::OnInitDialog()
 {
     __super::OnInitDialog();
-
-    if (CFont* pFont = m_list.GetFont()) {
-        if (!m_fontBold.m_hObject) {
-            LOGFONT logfont;
-            pFont->GetLogFont(&logfont);
-            logfont.lfWeight = FW_BOLD;
-            m_fontBold.CreateFontIndirect(&logfont);
-        }
-    }
+    initBoldFont();
 
     SetRedraw(FALSE);
     m_list.SetExtendedStyle(m_list.GetExtendedStyle() /* | LVS_EX_FULLROWSELECT */ | LVS_EX_AUTOSIZECOLUMNS /*| LVS_EX_DOUBLEBUFFER */ | LVS_EX_INFOTIP);
@@ -153,7 +147,7 @@ void CPPageAdvanced::InitSettings()
     addBoolItem(FPS_STATUSBAR, IDS_RS_SHOW_FPS_STATUSBAR, false, s.bShowFPSInStatusbar, StrRes(IDS_PPAGEADVANCED_SHOW_FPS_STATUSBAR));
     addBoolItem(ABMARKS_STATUSBAR, IDS_RS_SHOW_ABMARKS_STATUSBAR, false, s.bShowABMarksInStatusbar, StrRes(IDS_PPAGEADVANCED_SHOW_ABMARKS_STATUSBAR));
     addIntItem(RECENT_FILES_NB, IDS_RS_RECENT_FILES_NUMBER, 100, s.iRecentFilesNumber, std::make_pair(0, 1000), StrRes(IDS_PPAGEADVANCED_RECENT_FILES_NUMBER));
-    addIntItem(FILE_POS_LONGER, IDS_RS_FILEPOSLONGER, 0, s.iRememberPosForLongerThan, std::make_pair(0, INT_MAX), StrRes(IDS_PPAGEADVANCED_FILE_POS_LONGER));
+    addIntItem(FILE_POS_LONGER, IDS_RS_FILEPOSLONGER, 5, s.iRememberPosForLongerThan, std::make_pair(1, INT_MAX), StrRes(IDS_PPAGEADVANCED_FILE_POS_LONGER));
     addBoolItem(FILE_POS_AUDIO, IDS_RS_FILEPOSAUDIO, true, s.bRememberPosForAudioFiles, StrRes(IDS_PPAGEADVANCED_FILE_POS_AUDIO));
     addBoolItem(FULLSCREEN_SEPARATE_CONTROLS, IDS_RS_FULLSCREEN_SEPARATE_CONTROLS, false, s.bFullscreenSeparateControls, StrRes(IDS_PPAGEADVANCED_FULLSCREEN_SEPARATE_CONTROLS));
     addIntItem(COVER_SIZE_LIMIT, IDS_RS_COVER_ART_SIZE_LIMIT, 600, s.nCoverArtSizeLimit, std::make_pair(0, INT_MAX), StrRes(IDS_PPAGEADVANCED_COVER_SIZE_LIMIT));
@@ -178,7 +172,7 @@ void CPPageAdvanced::InitSettings()
     addBoolItem(USE_TITLE_IN_RECENT_FILE_LIST, IDS_RS_USE_TITLE_IN_RECENT_FILE_LIST, true, s.bUseTitleInRecentFileList, StrRes(IDS_PPAGEADVANCED_USE_TITLE_IN_RECENT_FILE_LIST));
     addIntItem(MOUSE_LEFTUP_DELAY, IDS_RS_MOUSE_LEFTUP_DELAY, 0, s.iMouseLeftUpDelay, std::make_pair(0, 1000), StrRes(IDS_PPAGEADVANCED_MOUSE_LEFTUP_DELAY));
     addBoolItem(LOCK_NOPAUSE, IDS_RS_LOCK_NOPAUSE, false, s.bLockNoPause, StrRes(IDS_PPAGEADVANCED_LOCK_NOPAUSE));
-    addIntItem(RELOAD_AFTER_LONG_PAUSE, IDS_RS_RELOAD_AFTER_LONG_PAUSE, -1, s.iReloadAfterLongPause, std::make_pair(-1, 1440), StrRes(IDS_PPAGEADVANCED_RELOAD_AFTER_LONG_PAUSE));
+    addIntItem(RELOAD_AFTER_LONG_PAUSE, IDS_RS_RELOAD_AFTER_LONG_PAUSE, 0, s.iReloadAfterLongPause, std::make_pair(-1, 1440), StrRes(IDS_PPAGEADVANCED_RELOAD_AFTER_LONG_PAUSE));
     addBoolItem(INACCURATE_FASTSEEK, IDS_RS_ALLOW_INACCURATE_FASTSEEK, true, s.bAllowInaccurateFastseek, StrRes(IDS_PPAGEADVANCED_ALLOW_INACCURATE_FASTSEEK));
     addIntItem(STILL_VIDEO_DURATION, IDS_RS_STILL_VIDEO_DURATION, 10, s.iStillVideoDuration, std::make_pair(0, 86400), _T("Display duration in seconds for images rendered by ""Generate Still Video"" and ""MPC Image Source"" filters. Use 0 for infinite."));
     addIntItem(STREAMPOSPOLLER_INTERVAL, IDS_RS_TIME_REFRESH_INTERVAL, 100, s.nStreamPosPollerInterval, std::make_pair(40, 500), StrRes(IDS_PPAGEADVANCED_TIME_REFRESH_INTERVAL));
@@ -194,6 +188,7 @@ void CPPageAdvanced::InitSettings()
         std::make_pair(10, 30), StrRes(IDS_PPAGEADVANCED_SCORE));
     addBoolItem(OPEN_REC_PANEL_WHEN_OPENING_DEVICE, IDS_RS_OPEN_REC_PANEL_WHEN_OPENING_DEVICE, true, s.bOpenRecPanelWhenOpeningDevice, StrRes(IDS_PPAGEADVANCED_OPEN_REC_PANEL_WHEN_OPENING_DEVICE));
     addBoolItem(ALWAYS_USE_SHORT_MENU, IDS_RS_ALWAYS_USE_SHORT_MENU, false, s.bAlwaysUseShortMenu, StrRes(IDS_PPAGEADVANCED_ALWAYS_USE_SHORT_MENU));
+    addBoolItem(USE_FREETYPE, IDS_RS_USE_FREETYPE, false, s.bUseFreeType, StrRes(IDS_PPAGEADVANCED_USE_FREETYPE));
 }
 
 BOOL CPPageAdvanced::OnApply()
@@ -516,4 +511,24 @@ void CPPageAdvanced::OnEnChangeEdit()
             SetModified();
         }
     }
+}
+
+void CPPageAdvanced::initBoldFont() {
+    if (CFont* pFont = m_list.GetFont()) {
+        if (!m_fontBold.m_hObject) {
+            LOGFONT logfont;
+            pFont->GetLogFont(&logfont);
+            logfont.lfWeight = FW_BOLD;
+            m_fontBold.CreateFontIndirect(&logfont);
+        }
+    }
+}
+
+void CPPageAdvanced::DoDPIChanged()
+{
+    if (m_fontBold.m_hObject) {
+        m_fontBold.DeleteObject();
+    }
+    initBoldFont();
+    m_list.DoDPIChanged(); //themed listctrl stores its own font, and isn't drawn through CPPageAdvanced::OnNMCustomdraw
 }

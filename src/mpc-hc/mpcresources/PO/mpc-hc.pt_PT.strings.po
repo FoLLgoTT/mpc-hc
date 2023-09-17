@@ -3,15 +3,15 @@
 # This file is distributed under the same license as the MPC-HC package.
 # Translators:
 # Hugo Simões <hugo.simoes.1984@gmail.com>, 2021
-# Hugo Carvalho <hugokarvalho@hotmail.com>, 2022
+# Hugo Carvalho <hugokarvalho@hotmail.com>, 2023
 # 
 msgid ""
 msgstr ""
 "Project-Id-Version: MPC-HC\n"
-"POT-Creation-Date: 2022-06-24 16:57:41+0000\n"
+"POT-Creation-Date: 2022-12-04 16:41:19+0000\n"
 "PO-Revision-Date: 2020-01-02 07:46+0000\n"
-"Last-Translator: Hugo Carvalho <hugokarvalho@hotmail.com>, 2022\n"
-"Language-Team: Portuguese (Portugal) (https://www.transifex.com/mpchc/teams/106126/pt_PT/)\n"
+"Last-Translator: Hugo Carvalho <hugokarvalho@hotmail.com>, 2023\n"
+"Language-Team: Portuguese (Portugal) (https://app.transifex.com/mpchc/teams/106126/pt_PT/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -3967,19 +3967,19 @@ msgstr "Pontuação"
 
 msgctxt "IDS_SUBDL_DLG_FAILED"
 msgid "Online subtitles search failed."
-msgstr "Falhou a pesquisa online de legendas."
+msgstr "Falha na pesquisa de legendas online."
 
 msgctxt "IDS_SUBDL_DLG_ABORTED"
 msgid "Online subtitles search aborted."
-msgstr "Pesquisa online de legendas abortada."
+msgstr "Pesquisa de legendas online abortada."
 
 msgctxt "IDS_SUBDL_DLG_FOUND"
 msgid "Online subtitles search completed, %d subtitles found."
-msgstr "Pesquisa online de legendas concluída, %d legendas encontradas."
+msgstr "Pesquisa de legendas online concluída. %d legendas encontradas."
 
 msgctxt "IDS_SUBDL_DLG_NOTFOUND"
 msgid "Online subtitles search completed, no subtitles found."
-msgstr "Pesquisa online de legendas concluída, nenhuma legenda encontrada."
+msgstr "Pesquisa de legendas online concluída. Nenhuma legenda encontrada."
 
 msgctxt "IDS_SUBDL_DLG_TITLE"
 msgid "Download subtitles"
@@ -3987,11 +3987,11 @@ msgstr "Descarregar legendas"
 
 msgctxt "IDS_SUBDL_DLG_SEARCHING"
 msgid "Searching for subtitles online, please wait..."
-msgstr "A pesquisar por legendas online, por favor aguarde..."
+msgstr "A pesquisar por legendas online, aguarde..."
 
 msgctxt "IDS_SUBDL_DLG_ABORTING"
 msgid "Online subtitles search aborting..."
-msgstr "A abortar a pesquisa online de legendas..."
+msgstr "A abortar a pesquisa de legendas online..."
 
 msgctxt "IDS_SUBUL_DLG_USERNAME_COL"
 msgid "Username"
@@ -4654,6 +4654,12 @@ msgstr ""
 "Atalhos do menu do reprodutor e botão direito do rato mostram o menu "
 "compacto -- mesmo quando o menu principal está oculto."
 
+msgctxt "IDS_PPAGEADVANCED_USE_FREETYPE"
+msgid ""
+"Use FreeType for subtitle rendering.  Enables support for per-language "
+"glyphs."
+msgstr ""
+
 msgctxt "IDS_PPAGEADVANCED_FULLSCREEN_SEPARATE_CONTROLS"
 msgid ""
 "Keep main window controls visible on current monitor when going fullscreen "
@@ -4709,6 +4715,7 @@ msgid ""
 "Maximum delay in milliseconds of mouse LeftUp event when clicking on the "
 "video."
 msgstr ""
+"Atraso máximo em milissegundos do evento LeftUp do rato ao clicar no vídeo."
 
 msgctxt "IDS_PPAGEADVANCED_LOCK_NOPAUSE"
 msgid "Do not pause playback when locking the screen."

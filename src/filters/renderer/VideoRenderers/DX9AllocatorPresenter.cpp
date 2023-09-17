@@ -673,11 +673,13 @@ HRESULT CDX9AllocatorPresenter::CreateDevice(CString& _Error)
         if (m_pD3DEx) {
             CHECK_HR(m_pD3DEx->GetAdapterDisplayModeEx(m_CurrentAdapter, &DisplayMode, nullptr));
 
-            DisplayMode.Format = pp.BackBufferFormat;
             m_ScreenSize.SetSize(DisplayMode.Width, DisplayMode.Height);
+            m_BackBufferSize = m_ScreenSize;
+
+            DisplayMode.Format = pp.BackBufferFormat;
             pp.FullScreen_RefreshRateInHz = m_refreshRate = DisplayMode.RefreshRate;
-            pp.BackBufferWidth = m_ScreenSize.cx;
-            pp.BackBufferHeight = m_ScreenSize.cy;
+            pp.BackBufferWidth = m_BackBufferSize.cx;
+            pp.BackBufferHeight = m_BackBufferSize.cy;
 
             bTryToReset = bTryToReset && m_pD3DDevEx && SUCCEEDED(hr = m_pD3DDevEx->ResetEx(&pp, &DisplayMode));
 
@@ -710,10 +712,13 @@ HRESULT CDX9AllocatorPresenter::CreateDevice(CString& _Error)
         if (!m_pD3DDev) {
             CHECK_HR(m_pD3D->GetAdapterDisplayMode(m_CurrentAdapter, &d3ddm));
             d3ddm.Format = pp.BackBufferFormat;
+
             m_ScreenSize.SetSize(d3ddm.Width, d3ddm.Height);
+            m_BackBufferSize = m_ScreenSize;
+
             pp.FullScreen_RefreshRateInHz = m_refreshRate = d3ddm.RefreshRate;
-            pp.BackBufferWidth = m_ScreenSize.cx;
-            pp.BackBufferHeight = m_ScreenSize.cy;
+            pp.BackBufferWidth = m_BackBufferSize.cx;
+            pp.BackBufferHeight = m_BackBufferSize.cy;
 
             hr = m_pD3D->CreateDevice(
                      m_CurrentAdapter, D3DDEVTYPE_HAL, m_hFocusWindow,
@@ -755,9 +760,9 @@ HRESULT CDX9AllocatorPresenter::CreateDevice(CString& _Error)
 
             m_ScreenSize.SetSize(DisplayMode.Width, DisplayMode.Height);
             m_refreshRate = DisplayMode.RefreshRate;
-            CSize bbsize = GetBackBufferSize(m_ScreenSize, largestScreen, r.m_AdvRendSets.bDesktopSizeBackBuffer);
-            pp.BackBufferWidth  = bbsize.cx;
-            pp.BackBufferHeight = bbsize.cy;
+            m_BackBufferSize = GetBackBufferSize(m_ScreenSize, largestScreen, r.m_AdvRendSets.bDesktopSizeBackBuffer);
+            pp.BackBufferWidth  = m_BackBufferSize.cx;
+            pp.BackBufferHeight = m_BackBufferSize.cy;
 
             bTryToReset = bTryToReset && m_pD3DDevEx && SUCCEEDED(hr = m_pD3DDevEx->ResetEx(&pp, nullptr));
 
@@ -785,9 +790,9 @@ HRESULT CDX9AllocatorPresenter::CreateDevice(CString& _Error)
             CHECK_HR(m_pD3D->GetAdapterDisplayMode(m_CurrentAdapter, &d3ddm));
             m_ScreenSize.SetSize(d3ddm.Width, d3ddm.Height);
             m_refreshRate = d3ddm.RefreshRate;
-            CSize bbsize = GetBackBufferSize(m_ScreenSize, largestScreen, r.m_AdvRendSets.bDesktopSizeBackBuffer);
-            pp.BackBufferWidth  = bbsize.cx;
-            pp.BackBufferHeight = bbsize.cy;
+            m_BackBufferSize = GetBackBufferSize(m_ScreenSize, largestScreen, r.m_AdvRendSets.bDesktopSizeBackBuffer);
+            pp.BackBufferWidth  = m_BackBufferSize.cx;
+            pp.BackBufferHeight = m_BackBufferSize.cy;
 
             hr = m_pD3D->CreateDevice(
                      m_CurrentAdapter, D3DDEVTYPE_HAL, m_hFocusWindow,

@@ -60,19 +60,21 @@ private:
     CImageList m_fakeImageList;
     CMPCThemePlayerListCtrl m_list;
 
-	int m_itemHeight = 0;
-	bool createdWindow;
+    int m_itemHeight = 0;
+    int m_initialWindowDPI = 0;
+    bool createdWindow;
 
-	EventClient m_eventc;
+    EventClient m_eventc;
     void EventCallback(MpcEvent ev);
 
     int m_nTimeColWidth;
     void ResizeListColumn();
 
-    void AddItem(CString fn, CAtlList<CString>* subs = nullptr);
+    void AddItem(CString fn);
+    void AddItem(CString fn, CAtlList<CString>* subs);
     void AddItem(CAtlList<CString>& fns, CAtlList<CString>* subs = nullptr, CString label = _T(""), CString ydl_src = _T(""), CString cue = _T(""), CAtlList<CYoutubeDLInstance::YDLSubInfo>* ydl_subs = nullptr);
     bool AddItemNoDuplicate(CString fn);
-    bool AddFromFilemask(CString mask);
+    bool AddFromFilemask(CString mask, bool recurse_dirs = false);
     bool AddItemsInFolder(CString folder);
     void ParsePlayList(CString fn, CAtlList<CString>* subs, int redir_count = 0);
     void ParsePlayList(CAtlList<CString>& fns, CAtlList<CString>* subs, int redir_count = 0, CString label = _T(""), CString ydl_src = _T(""), CString cue = _T(""), CAtlList<CYoutubeDLInstance::YDLSubInfo>* ydl_subs = nullptr);

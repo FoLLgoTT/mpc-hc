@@ -22,12 +22,13 @@
 #include "stdafx.h"
 #include <cmath>
 #include <intrin.h>
-#include <algorithm>
 #include "ColorConvTable.h"
 #include "RTS.h"
 #include "../DSUtil/PathUtils.h"
-#include <ppl.h>
 #include "../filters/renderer/VideoRenderers/RenderersSettings.h"
+#include "moreuuids.h"
+
+#define MAXGDIFONTSIZE 36000
 
 // WARNING: this isn't very thread safe, use only one RTS a time. We should use TLS in future.
 static HDC g_hDC;
@@ -70,6 +71,17 @@ CMyFont::CMyFont(const STSStyle& style)
     }
 
     HFONT hOldFont = SelectFont(g_hDC, *this);
+
+    WCHAR selectedFontName[LF_FACESIZE];
+    GetTextFaceW(g_hDC, LF_FACESIZE, selectedFontName);
+    if (wcsncmp(selectedFontName, lf.lfFaceName, LF_FACESIZE)) { //GDI chose a different font -- let's use default instead
+        SelectFont(g_hDC, hOldFont);
+        DeleteObject();
+        _tcscpy_s(lf.lfFaceName, _T("Calibri"));
+        VERIFY(CreateFontIndirect(&lf));
+        HFONT hOldFont = SelectFont(g_hDC, *this);
+    }
+
     TEXTMETRIC tm;
     GetTextMetrics(g_hDC, &tm);
     m_ascent = ((tm.tmAscent + 4) >> 3);
@@ -101,6 +113,13 @@ CWord::CWord(const STSStyle& style, CStringW str, int ktype, int kstart, int ken
     if (str.IsEmpty()) {
         m_fWhiteSpaceChar = m_fLineBreak = true;
     }
+    if (m_style.fontSize > MAXGDIFONTSIZE) {
+        double fact = m_style.fontSize / MAXGDIFONTSIZE;
+        m_style.fontSize = MAXGDIFONTSIZE;
+        m_style.fontScaleX *= fact;
+        m_style.fontScaleY *= fact;
+    }
+
 }
 
 CWord::~CWord()
@@ -556,39 +575,56 @@ bool CText::CreatePath()
         return true;
     };
 
+    std::wstring fontNameK;
+
+
+    bool useFreetypePath = false;
+    CStringA langHint = "";
+    if (m_RTS) {
+        langHint = m_RTS->openTypeLangHint;
+        useFreetypePath = m_RTS->GetUseFreeType();
+        if (useFreetypePath) {
+            fontNameK = CW2W(m_style.fontName);
+            fontNameK += std::to_wstring(m_style.fontSize);
+        }
+    }
+
     if (m_style.fontSpacing) {
         int width = 0;
         bool bFirstPath = true;
-        bool failedPath = false;
 
-        for (LPCWSTR s = m_str; *s; s++) {
-            if (!getExtent(s, 1)) {
-                return false;
-            }
-            if (cx == 0) {
-                // possible unhandled unprintable character
-                ASSERT(*s == L'\x202a' || *s == L'\x202b');
-                continue;
-            }
-            PartialBeginPath(g_hDC, bFirstPath);
-            bFirstPath = false;
-            TextOutW(g_hDC, 0, 0, s, 1);
-            int mp = mPathPoints;
-            PartialEndPath(g_hDC, width, 0);
-            if (mp == mPathPoints && !CStringW::StrTraits::IsSpace(s[0])) { //failed to add points, we will try again with FreeType as emulator
-                failedPath=true;
-                break;
-            }
+        if (!useFreetypePath) {
+            for (LPCWSTR s = m_str; *s; s++) {
+                if (!getExtent(s, 1)) {
+                    return false;
+                }
+                if (cx == 0) {
+                    // possible unhandled unprintable character
+                    ASSERT(*s == L'\x202a' || *s == L'\x202b');
+                    continue;
+                }
+                PartialBeginPath(g_hDC, bFirstPath);
+                bFirstPath = false;
+                TextOutW(g_hDC, 0, 0, s, 1);
+                int mp = mPathPoints;
+                PartialEndPath(g_hDC, width, 0);
+                if (mp == mPathPoints && !CStringW::StrTraits::IsSpace(s[0]) && m_RTS) { //failed to add points, we will try again with FreeType as emulator
+                    useFreetypePath=true;
+                    break;
+                }
 #if 0
-            GetPathFreeType(g_hDC, false, s[0], m_style.fontSize, width+ cx + (int)m_style.fontSpacing, 0);
-            GetPathFreeType(g_hDC, false, s[0], m_style.fontSize, width, m_style.fontSize*2);
+                GetPathFreeType(g_hDC, false, s[0], m_style.fontSize, width+ cx + (int)m_style.fontSpacing, 0);
+                GetPathFreeType(g_hDC, false, s[0], m_style.fontSize, width, m_style.fontSize*2);
 #endif
 
-            width += cx + (int)m_style.fontSpacing;
+                width += cx + (int)m_style.fontSpacing;
+            }
         }
-        if (failedPath) { //try freetype
+        if (useFreetypePath) { //try freetype
             int ftWidth = 0;
             bFirstPath = true;
+            m_RTS->m_ftLibrary.LoadCodeFaceData(g_hDC, fontNameK);
+            m_RTS->m_ftLibrary.LoadCodePoints(m_str, fontNameK, langHint);
             for (LPCWSTR s = m_str; *s; s++) {
                 if (!getExtent(s, 1)) {
                     return false;
@@ -598,7 +634,8 @@ bool CText::CreatePath()
                     ASSERT(false);
                     continue;
                 }
-                if (!GetPathFreeType(g_hDC, bFirstPath, m_style.fontName, s[0], m_style.fontSize, ftWidth, 0)) {
+
+                if (!GetPathFreeType(g_hDC, bFirstPath, fontNameK, s[0], ftWidth, 0, langHint, &m_RTS->m_ftLibrary)) {
                     break;
                 }
                 bFirstPath = false;
@@ -612,18 +649,22 @@ bool CText::CreatePath()
             return false;
         }
 
-        BeginPath(g_hDC);
-        TextOutW(g_hDC, 0, 0, m_str, m_str.GetLength());
-        EndPath(g_hDC);
+        if (!useFreetypePath) {
+            BeginPath(g_hDC);
+            TextOutW(g_hDC, 0, 0, m_str, m_str.GetLength());
+            EndPath(g_hDC);
+        }
 
-        if (mPathPoints == 0 && m_str.GetLength() > 0) { // try freetype
+        if ((useFreetypePath || mPathPoints == 0) && m_str.GetLength() > 0) { // try freetype
             int ftWidth = 0;
             bool bFirstPath = true;
+            m_RTS->m_ftLibrary.LoadCodeFaceData(g_hDC, fontNameK);
+            m_RTS->m_ftLibrary.LoadCodePoints(m_str, fontNameK, langHint);
             for (LPCWSTR s = m_str; *s; s++) {
                 if (!getExtent(s, 1)) {
                     return false;
                 }
-                if (!GetPathFreeType(g_hDC, bFirstPath, m_style.fontName, s[0], m_style.fontSize, ftWidth, 0)) {
+                if (!GetPathFreeType(g_hDC, bFirstPath, fontNameK, s[0], ftWidth, 0, langHint, &m_RTS->m_ftLibrary)) {
                     break;
                 }
                 bFirstPath = false;
@@ -1324,6 +1365,7 @@ CSubtitle::CSubtitle(RenderingCaches& renderingCaches)
     , m_script_scale_y(1.0)
     , m_total_scale_x(1.0)
     , m_total_scale_y(1.0)
+    , m_allowLinePadding(false)
 {
     ZeroMemory(m_effects, sizeof(Effect*)*EF_NUMBEROFEFFECTS);
 }
@@ -1451,7 +1493,7 @@ CLine* CSubtitle::GetNextLine(POSITION& pos, int maxwidth)
         if (ret->m_borderY < w->m_style.outlineWidthY) {
             ret->m_borderY = (int)(w->m_style.outlineWidthY + 0.5);
         }
-        if (w->m_style.borderStyle == 1 && (ret->m_linePadding < ret->m_borderY * 2)) {
+        if (w->m_style.borderStyle == 1 && m_allowLinePadding && (ret->m_linePadding < ret->m_borderY * 2)) {
             ret->m_linePadding = ret->m_borderY * 2;
         }
 
@@ -1560,6 +1602,7 @@ void CSubtitle::MakeLines(CSize size, const CRect& marginRect)
 
         if (fFirstLine) {
             m_topborder = l->m_borderY;
+            l->m_linePadding = 0;
             fFirstLine = false;
         }
 
@@ -1684,6 +1727,7 @@ CRenderedTextSubtitle::CRenderedTextSubtitle(CCritSec* pLock)
     , m_bOverridePlacement(false)
     , m_overridePlacement(50, 90)
     , m_webvtt_allow_clear(false)
+    , m_bUseFreeType(false)
 {
     m_size = CSize(0, 0);
 
@@ -1780,6 +1824,31 @@ void CRenderedTextSubtitle::Empty()
     Deinit();
 
     __super::Empty();
+}
+
+void CRenderedTextSubtitle::SetOverride(bool bOverride, const STSStyle& styleOverride) {
+    bool changed = (m_bOverrideStyle != bOverride) || bOverride && (m_styleOverride != styleOverride);
+    if (changed) {
+        m_bOverrideStyle = bOverride;
+        m_styleOverride = styleOverride;
+
+        m_SubRendererSettings.defaultStyle = styleOverride;
+        m_SubRendererSettings.overrideDefaultStyle = bOverride;
+
+#if USE_LIBASS
+        if (m_LibassContext.IsLibassActive()) {
+            m_LibassContext.DefaultStyleChanged();
+        } else {
+            if (bOverride) {
+                m_storageRes = m_playRes; // needed to get correct font scaling with default style
+            }
+        }
+#else
+        if (bOverride) {
+            m_storageRes = m_playRes; // needed to get correct font scaling with default style
+        }
+#endif
+    }
 }
 
 void CRenderedTextSubtitle::OnChanged()
@@ -1930,19 +1999,22 @@ void CRenderedTextSubtitle::ParseString(CSubtitle* sub, CStringW str, STSStyle& 
         }
 
         if (i < j) {
-            if (CWord* w = DEBUG_NEW CText(style, str.Mid(i, j - i), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+            if (CText* w = DEBUG_NEW CText(style, str.Mid(i, j - i), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+                w->SetRts(this);
                 sub->m_words.AddTail(w);
                 m_kstart = m_kend;
             }
         }
 
         if (c == L'\n') {
-            if (CWord* w = DEBUG_NEW CText(style, CStringW(), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+            if (CText* w = DEBUG_NEW CText(style, CStringW(), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+                w->SetRts(this);
                 sub->m_words.AddTail(w);
                 m_kstart = m_kend;
             }
         } else if (c == L' ') {
-            if (CWord* w = DEBUG_NEW CText(style, CStringW(c), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+            if (CText* w = DEBUG_NEW CText(style, CStringW(c), m_ktype, m_kstart, m_kend, sub->m_target_scale_x, sub->m_target_scale_y, m_renderingCaches)) {
+                w->SetRts(this);
                 sub->m_words.AddTail(w);
                 m_kstart = m_kend;
             }
@@ -2814,6 +2886,8 @@ CSubtitle* CRenderedTextSubtitle::GetSubtitle(int entry)
         m_storageRes = m_playRes;
     }
 
+    sub->m_allowLinePadding = (m_subtitleType != Subtitle::ASS && m_subtitleType != Subtitle::SSA);
+
     STSStyle stss;
     int scaledBAS = m_scaledBAS;
     if (m_bOverrideStyle) {
@@ -3047,6 +3121,12 @@ STDMETHODIMP CRenderedTextSubtitle::NonDelegatingQueryInterface(REFIID riid, voi
 
 STDMETHODIMP_(POSITION) CRenderedTextSubtitle::GetStartPosition(REFERENCE_TIME rt, double fps)
 {
+#if USE_LIBASS
+    if (m_LibassContext.IsLibassActive()) {
+        return m_LibassContext.GetStartPosition(rt, fps);
+    }
+#endif
+
     int iSegment = -1;
     SearchSubs(rt, fps, &iSegment, nullptr);
 
@@ -3065,6 +3145,12 @@ CString CRenderedTextSubtitle::GetPath() {
 
 STDMETHODIMP_(POSITION) CRenderedTextSubtitle::GetNext(POSITION pos)
 {
+#if USE_LIBASS
+    if (m_LibassContext.IsLibassActive()) {
+        return m_LibassContext.GetNext(pos);
+    }
+#endif
+
     __assume((INT_PTR)pos >= INT_MIN && (INT_PTR)pos <= INT_MAX);
     int iSegment = (int)(INT_PTR)pos;
 
@@ -3079,18 +3165,33 @@ STDMETHODIMP_(POSITION) CRenderedTextSubtitle::GetNext(POSITION pos)
 
 STDMETHODIMP_(REFERENCE_TIME) CRenderedTextSubtitle::GetStart(POSITION pos, double fps)
 {
+#if USE_LIBASS
+    if (m_LibassContext.IsLibassActive()) {
+        return m_LibassContext.GetCurrent(pos);
+    }
+#endif
     __assume((INT_PTR)pos - 1 >= INT_MIN && (INT_PTR)pos <= INT_MAX);
     return TranslateSegmentStart((int)(INT_PTR)pos - 1, fps);
 }
 
 STDMETHODIMP_(REFERENCE_TIME) CRenderedTextSubtitle::GetStop(POSITION pos, double fps)
 {
+#if USE_LIBASS
+    if (m_LibassContext.IsLibassActive()) {
+        return m_LibassContext.GetCurrent(pos) + 1;
+    }
+#endif
     __assume((INT_PTR)pos - 1 >= INT_MIN && (INT_PTR)pos <= INT_MAX);
     return TranslateSegmentEnd((int)(INT_PTR)pos - 1, fps);
 }
 
 STDMETHODIMP_(bool) CRenderedTextSubtitle::IsAnimated(POSITION pos)
 {
+#if USE_LIBASS
+    if (m_LibassContext.IsLibassActive()) {
+        return false;
+    }
+#endif
     __assume((INT_PTR)pos - 1 >= INT_MIN && (INT_PTR)pos <= INT_MAX);
     int iSegment = (int)(INT_PTR)pos - 1;
 
@@ -3115,54 +3216,6 @@ struct LSub {
     }
 };
 
-namespace {
-    inline POINT GetRectPos(RECT rect) {
-        return { rect.left, rect.top };
-    }
-
-    inline SIZE GetRectSize(RECT rect) {
-        return { rect.right - rect.left, rect.bottom - rect.top };
-    }
-}
-
-#if USE_LIBASS
-void AssFlatten(ASS_Image* image, SubPicDesc& spd, CRect &rcDirty) {
-    if (image) {
-        RECT pRect = { 0 };
-        for (auto i = image; i != nullptr; i = i->next) {
-            RECT rect1 = pRect;
-            RECT rect2 = { i->dst_x, i->dst_y, i->dst_x + i->w, i->dst_y + i->h };
-            UnionRect(&pRect, &rect1, &rect2);
-        }
-
-        const POINT pixelsPoint = GetRectPos(pRect);
-        const SIZE pixelsSize = GetRectSize(pRect);
-        rcDirty.IntersectRect(CRect(pixelsPoint, pixelsSize), CRect(0, 0, spd.w, spd.h));
-
-        BYTE* pixelBytes = (BYTE*)(spd.bits + spd.pitch * rcDirty.top + rcDirty.left * 4);
-
-        for (auto i = image; i != nullptr; i = i->next) {
-            concurrency::parallel_for(0, i->h, [&](int y)
-                {
-                    for (int x = 0; x < i->w; ++x) {
-                        BYTE* dst = &pixelBytes[((ptrdiff_t)i->dst_y + y - pixelsPoint.y) * spd.pitch + ((ptrdiff_t)i->dst_x + x - pixelsPoint.x) * 4];
-
-                        uint32_t srcA = (i->bitmap[y * i->stride + x] * (0xff - (i->color & 0x000000ff))) >> 8;
-                        uint32_t compA = 0xff - srcA;
-
-
-                        dst[3] = 0xff - (srcA + (((0xff-dst[3]) * compA) >> 8)); //A.  this is inverted alpha, so we invert it before multiplying and then invert it again
-                        dst[2] = (((i->color & 0xff000000) >> 24) * srcA + (dst[2]) * compA) >> 8; //R
-                        dst[1] = (((i->color & 0x00ff0000) >> 16) * srcA + dst[1] * compA) >> 8; //G
-                        dst[0] = (((i->color & 0x0000ff00) >> 8) * srcA + dst[0] * compA) >> 8; //B
-
-                    }
-                }, concurrency::static_partitioner());
-        }
-    }
-}
-#endif
-
 STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, double fps, RECT& bbox)
 {
     CAutoLock cAutoLock(&renderLock);
@@ -3174,32 +3227,9 @@ STDMETHODIMP CRenderedTextSubtitle::Render(SubPicDesc& spd, REFERENCE_TIME rt, d
     }
 
 #if USE_LIBASS
-    if (m_assloaded) {
-        if (spd.bpp != 32) {
-            ASSERT(FALSE);
-            return E_INVALIDARG;
-        }
-
-        if (!m_assfontloaded && m_pPin) {
-            LoadASSFont(m_pPin, m_ass.get(), m_renderer.get());
-        }
-
-        m_size = CSize(spd.w, spd.h);
-        m_vidrect = CRect(spd.vidrect.left, spd.vidrect.top, spd.vidrect.right, spd.vidrect.bottom);
-        ass_set_frame_size(m_renderer.get(), spd.w, spd.h);
-
-        int changed = 1;
-        ASS_Image* image = ass_render_frame(m_renderer.get(), m_track.get(), rt / 10000, &changed);
-
-        if (!image) {
-            return E_FAIL;
-        }
-
-        CRect rcDirty;
-        AssFlatten(image, spd, rcDirty);
-
-        bbox = rcDirty;
-        return S_OK;
+    HRESULT libassResult = m_LibassContext.Render(rt, spd, bbox, m_size, m_vidrect);
+    if (libassResult != E_POINTER) { //libass not initialized
+        return libassResult;
     }
 #endif
 
@@ -3592,4 +3622,16 @@ STDMETHODIMP CRenderedTextSubtitle::SetSourceTargetInfo(CString yuvVideoMatrix, 
     ColorConvTable::SetDefaultConvType(video_matrix, video_range, (targetWhiteLevel < 245), bCorrect601to709);
 
     return S_OK;
+}
+
+void CRenderedTextSubtitle::SetSubtitleTypeFromGUID(GUID subtype) {
+    if (subtype== MEDIASUBTYPE_UTF8) {
+        m_subtitleType = Subtitle::SRT;
+    } else if (subtype == MEDIASUBTYPE_SSA) {
+        m_subtitleType = Subtitle::SSA;
+    } else if (subtype == MEDIASUBTYPE_ASS || subtype == MEDIASUBTYPE_ASS2) {
+        m_subtitleType = Subtitle::ASS;
+    } else if (subtype == MEDIASUBTYPE_WEBVTT) {
+        m_subtitleType = Subtitle::VTT;
+    }
 }

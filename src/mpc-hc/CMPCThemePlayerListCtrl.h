@@ -33,6 +33,7 @@ public:
     void setFlaggedItem(int iItem, bool flagged);
     bool getFlaggedItem(int iItem);
     void setColorInterface(CMPCThemeListCtrlCustomInterface* iface) { customThemeInterface = iface; };
+    void DoDPIChanged();
 
     DECLARE_MESSAGE_MAP()
     afx_msg void OnNcPaint();

@@ -6,6 +6,7 @@
 #include "CMPCThemeToolTipCtrl.h"
 
 class CMPCThemeTitleBarControlButton;
+int CALLBACK PropSheetCallBackRTL(HWND hWnd, UINT message, LPARAM lParam);
 
 class CMPCThemeUtil
 {
@@ -36,6 +37,7 @@ protected:
     void EnableThemedDialogTooltips(CDialog* wnd);
     void PlaceThemedDialogTooltip(UINT_PTR nID);
     void RelayThemedDialogTooltip(MSG* pMsg);
+    static bool metricsNeedCalculation;
 public:
     static bool getFontByFace(CFont& font, CWnd *wnd, wchar_t* fontName, int size, LONG weight = FW_REGULAR);
     static bool getFixedFont(CFont& font, CDC* pDC, CWnd* wnd);
@@ -71,6 +73,8 @@ public:
     static void drawParentDialogBGClr(CWnd* wnd, CDC* pDC, CRect r, bool fill = true);
     static void fulfillThemeReqs(CProgressCtrl* ctl);
     static void enableWindows10DarkFrame(CWnd* window);
+
+    void PreDoModalRTL(LPPROPSHEETHEADERW m_psh);
 
     enum CheckBoxStyle {
         CheckBoxRegular = 0,

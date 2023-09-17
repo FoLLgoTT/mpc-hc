@@ -53,3 +53,8 @@ HBRUSH CMPCThemePropertySheet::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
         return hbr;
     }
 }
+
+INT_PTR CMPCThemePropertySheet::DoModal() {
+    PreDoModalRTL(&m_psh);
+    return __super::DoModal();
+}

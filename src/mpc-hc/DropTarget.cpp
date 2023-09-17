@@ -66,14 +66,15 @@ BOOL CDropTarget::OnDrop(CWnd* pWnd, COleDataObject* pDataObject, DROPEFFECT dro
 
     if (auto pClient = dynamic_cast<CDropClient*>(pWnd)) {
         if (pDataObject->IsDataAvailable(CF_HDROP)) {
-            if (HGLOBAL hGlobal = pDataObject->GetGlobalData(CF_HDROP)) {
+            if (HGLOBAL hGlobal = pDataObject->GetGlobalData(CF_HDROP)) { // fails for long paths
                 if (HDROP hDrop = static_cast<HDROP>(GlobalLock(hGlobal))) {
                     UINT nFiles = ::DragQueryFile(hDrop, UINT_MAX, nullptr, 0);
                     for (UINT iFile = 0; iFile < nFiles; iFile++) {
                         CString fn;
-                        UINT res = ::DragQueryFile(hDrop, iFile, fn.GetBuffer(MAX_PATH), MAX_PATH);
+                        UINT res = ::DragQueryFile(hDrop, iFile, fn.GetBuffer(2048), 2048);
                         if (res) {
                             fn.ReleaseBuffer(res);
+                            //ExtendMaxPathLengthIfNeeded(fn);
                             slFiles.AddTail(fn);
                         }
                     }
@@ -82,6 +83,8 @@ BOOL CDropTarget::OnDrop(CWnd* pWnd, COleDataObject* pDataObject, DROPEFFECT dro
                     bResult = TRUE;
                 }
                 GlobalUnlock(hGlobal);
+            } else {
+                AfxMessageBox(L"Error when dropping file", MB_OK);
             }
         } else if (pDataObject->IsDataAvailable(CF_URL)) {
             FORMATETC fmt = { CF_URL, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };

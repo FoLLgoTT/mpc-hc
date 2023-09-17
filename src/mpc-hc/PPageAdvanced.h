@@ -172,9 +172,11 @@ public:
 
 class CPPageAdvanced : public CMPCThemePPageBase
 {
+    DECLARE_DYNAMIC(CPPageAdvanced)
 public:
     CPPageAdvanced();
     virtual ~CPPageAdvanced() = default;
+    virtual void DoDPIChanged();
 
 private:
     enum { IDD = IDD_PPAGEADVANCED };
@@ -229,6 +231,7 @@ private:
         AUTO_DOWNLOAD_SCORE_SERIES,
         OPEN_REC_PANEL_WHEN_OPENING_DEVICE,
         ALWAYS_USE_SHORT_MENU,
+        USE_FREETYPE,
     };
 
     enum {
@@ -266,6 +269,8 @@ protected:
     virtual void DoDataExchange(CDataExchange* pDX) override;
     virtual BOOL OnInitDialog() override;
     virtual BOOL OnApply() override;
+    void initBoldFont();
+
 
     afx_msg void OnBnClickedDefaultButton();
     afx_msg void OnUpdateDefaultButton(CCmdUI* pCmdUI);

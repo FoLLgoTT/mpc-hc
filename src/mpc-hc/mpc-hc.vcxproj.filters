@@ -597,6 +597,9 @@
     <ClCompile Include="ModelessResizableDialog.cpp">
       <Filter>Modal Dialogs</Filter>
     </ClCompile>
+    <ClCompile Include="MouseWndWithArtView.cpp">
+      <Filter>Main View</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppSettings.h">
@@ -1133,6 +1136,10 @@
     <ClInclude Include="ModelessResizableDialog.h">
       <Filter>Modal Dialogs</Filter>
     </ClInclude>
+    <ClInclude Include="MouseWndWithArtView.h">
+      <Filter>Main View</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\include\mpc-hc_config.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="res\ani.avi">

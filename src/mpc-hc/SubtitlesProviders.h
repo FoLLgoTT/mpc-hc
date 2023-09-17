@@ -282,6 +282,7 @@ public:
     }
 
     void Abort() {
+        if(!this) return;
         CAutoLock cAutoLock(&m_csThreads);
         for (auto& iter : m_pThreads) {
             iter->AbortThread();
